@@ -4,6 +4,7 @@ const Widget = require('./widget');
 const vm = require('vm');
 const express = require('express');
 const path = require('path');
+const chokidar = require('chokidar');
 const args = require('minimist')(process.argv);
 const app = express();
 
@@ -11,11 +12,18 @@ const wPath = args.w || args.widget;
 
 if (!wPath || args.h || args.help) {
   console.log(`
-  Usage: ${args._[0]} -w path/to/my.widget
+  Usage: ${args._[0]} -w path/to/my.widget [-e path1 -e path2]
     -w widget path
+    -e extra file paths to watch and reload for
   `);
   process.exit(1);
 }
+
+const watchPaths = [wPath];
+
+const extras = args.e || args.extras;
+if ( extras ) extras.forEach(e=>watchPaths.push(e));
+const watcher = chokidar.watch(watchPaths, { ignoreInitial: true });
 
 const html = `<html><body><div id="widget"></div></body></html>`;
 jsdom.env(html, [jquery], function (err, window) {
@@ -27,7 +35,15 @@ jsdom.env(html, [jquery], function (err, window) {
   ctx.document = document;
   ctx.$ = $
   const w = new Widget(wPath, ctx);
-  w._init();
+  const reload = () => {
+    console.log('reloaded widget');
+    w._init();
+  }
+
+  watcher.on('add', reload);
+  watcher.on('change', reload);
+  watcher.on('unlink', reload);
+
   app.use('/'+path.basename(wPath), express.static(wPath));
   app.get('/', (req, res) => res.send(w.html()));
 });
