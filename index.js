@@ -22,7 +22,13 @@ if (!wPath || args.h || args.help) {
 const watchPaths = [wPath];
 
 const extras = args.e || args.extras;
-if ( extras ) extras.forEach(e=>watchPaths.push(e));
+if ( extras ) {
+  if (extras.forEach) {
+    extras.forEach(e=>watchPaths.push(e));
+  } else {
+    watchPaths.push(extras);
+  }
+}
 const watcher = chokidar.watch(watchPaths, { ignoreInitial: true });
 
 const html = `<html><body><div id="widget"></div></body></html>`;
