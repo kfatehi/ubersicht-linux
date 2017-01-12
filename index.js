@@ -31,29 +31,39 @@ if ( extras ) {
 }
 const watcher = chokidar.watch(watchPaths, { ignoreInitial: true });
 
-const html = `<html><body><div id="widget"></div></body></html>`;
-jsdom.env(html, [jquery], function (err, window) {
-  const ctx = vm.createContext();
-  const $ = window.$;
-  const document = window.document;
-  ctx.console = console;
-  ctx.window = window;
-  ctx.document = document;
-  ctx.$ = $
-  const w = new Widget(wPath, ctx);
-  const reload = () => {
-    console.log('reloaded widget');
-    w._init();
+let w = null;
+
+const reload = () => {
+  const html = `<html><body><div id="widget"></div></body></html>`;
+  jsdom.env(html, [jquery], function (err, window) {
+    const ctx = vm.createContext();
+    const $ = window.$;
+    const document = window.document;
+    ctx.console = console;
+    ctx.window = window;
+    ctx.document = document;
+    ctx.$ = $
+    w = null;
+    w = new Widget(wPath, ctx);
+    w._init().then(()=>{
+      console.log('reloaded widget');
+    });
+  });
+}
+
+watcher.on('add', reload);
+watcher.on('change', reload);
+watcher.on('unlink', reload);
+
+reload();
+
+app.use('/'+path.basename(wPath), express.static(wPath));
+app.get('/', (req, res) => {
+  if (w) {
+    res.send(w.html());
+  } else {
+    res.send('No widget loaded');
   }
-
-  watcher.on('add', reload);
-  watcher.on('change', reload);
-  watcher.on('unlink', reload);
-
-  reload();
-
-  app.use('/'+path.basename(wPath), express.static(wPath));
-  app.get('/', (req, res) => res.send(w.html()));
 });
 app.listen(3000, () => {
   console.log('ubersicht mini server listening on port 3000');
