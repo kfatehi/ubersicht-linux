@@ -50,6 +50,8 @@ jsdom.env(html, [jquery], function (err, window) {
   watcher.on('change', reload);
   watcher.on('unlink', reload);
 
+  reload();
+
   app.use('/'+path.basename(wPath), express.static(wPath));
   app.get('/', (req, res) => res.send(w.html()));
 });
