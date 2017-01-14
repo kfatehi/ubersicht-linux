@@ -7,6 +7,9 @@ const path = require('path');
 const chokidar = require('chokidar');
 const args = require('minimist')(process.argv);
 const app = express();
+const spawn = require('child_process').spawn;
+const PORT = args.p || args.port || 3000;
+const SURF = args.s || args.surf;
 
 const wPath = args.w || args.widget;
 
@@ -32,9 +35,10 @@ if ( extras ) {
 const watcher = chokidar.watch(watchPaths, { ignoreInitial: true });
 
 let w = null;
+let surfProc = null;
 
 const reload = () => {
-  const html = `<html><body><div id="widget"></div></body></html>`;
+  const html = `<html><head><title>ubersicht-mini</title></head><body><div id="widget"></div></body></html>`;
   jsdom.env(html, [jquery], function (err, window) {
     const ctx = vm.createContext();
     const $ = window.$;
@@ -46,7 +50,15 @@ const reload = () => {
     w = null;
     w = new Widget(wPath, ctx);
     w._init().then(()=>{
-      console.log('reloaded widget');
+      setTimeout(()=> {
+        if (SURF) {
+          if (surfProc === null) {
+            surfProc = spawn('surf', ['0.0.0.0:'+PORT]);
+          } else {
+            surfProc.kill('SIGHUP'); // this reloads surf
+          }
+        }
+      }, 100);
     });
   });
 }
@@ -65,6 +77,4 @@ app.get('/', (req, res) => {
     res.send('No widget loaded');
   }
 });
-app.listen(3000, () => {
-  console.log('ubersicht mini server listening on port 3000');
-});
+app.listen(PORT);
